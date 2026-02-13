@@ -3,8 +3,11 @@ package com.project.back_end.models;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 @Entity
 @Table(name = "doctors")
@@ -25,12 +28,13 @@ public class Doctor {
     @Size(min = 3, max = 50)
     private String specialty;
 
-    // Email
+    // Email (unique)
     @NotNull
     @Email
+    @Column(unique = true)
     private String email;
 
-    // Password (write-only for security)
+    // Password (write-only and hashed for security)
     @NotNull
     @Size(min = 6)
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
@@ -41,7 +45,7 @@ public class Doctor {
     @Pattern(regexp = "^[0-9]{10}$")
     private String phone;
 
-    // ✅ Available Time Slots (FIXED)
+    // Available Time Slots
     @ElementCollection
     @CollectionTable(
         name = "doctor_available_times",
@@ -50,7 +54,22 @@ public class Doctor {
     @Column(name = "available_time")
     private List<String> availableTimes;
 
-    // Getters and Setters
+    // ---------------- Constructors ----------------
+
+    public Doctor() {
+        // Required by JPA
+    }
+
+    public Doctor(String name, String specialty, String email, String password, String phone, List<String> availableTimes) {
+        this.name = name;
+        this.specialty = specialty;
+        this.email = email;
+        setPassword(password); // Hash password
+        this.phone = phone;
+        this.availableTimes = availableTimes;
+    }
+
+    // ---------------- Getters & Setters ----------------
 
     public Long getId() {
         return id;
@@ -88,8 +107,11 @@ public class Doctor {
         return password;
     }
 
+    // Hash password before storing
     public void setPassword(String password) {
-        this.password = password;
+        if (password != null) {
+            this.password = new BCryptPasswordEncoder().encode(password);
+        }
     }
 
     public String getPhone() {
@@ -101,11 +123,38 @@ public class Doctor {
     }
 
     public List<String> getAvailableTimes() {
-        return availableTimes;
+        return availableTimes == null ? null : Collections.unmodifiableList(availableTimes);
     }
 
     public void setAvailableTimes(List<String> availableTimes) {
         this.availableTimes = availableTimes;
+    }
+
+    // ---------------- Utility Methods ----------------
+
+    @Override
+    public String toString() {
+        return "Doctor{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", specialty='" + specialty + '\'' +
+                ", email='" + email + '\'' +
+                ", phone='" + phone + '\'' +
+                ", availableTimes=" + availableTimes +
+                '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Doctor doctor)) return false;
+        return Objects.equals(id, doctor.id) &&
+               Objects.equals(email, doctor.email);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, email);
     }
 }
 
